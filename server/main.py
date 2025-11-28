@@ -505,6 +505,7 @@ async def mcp_discovery(request):
 # Define base routes
 routes = [
     Route("/", serve_widget_root, methods=["GET"]),
+    Route("/widget", serve_widget_root, methods=["GET"]),
     Route("/api/token-counter", api_token_counter_route, methods=["POST"]),
     Route("/.well-known/mcp.json", mcp_discovery, methods=["GET"]),
 ]
