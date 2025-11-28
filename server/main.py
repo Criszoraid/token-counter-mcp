@@ -478,17 +478,35 @@ from starlette.applications import Starlette
 from starlette.routing import Route, Mount
 from starlette.responses import JSONResponse
 
-async def mcp_debug_endpoint(request):
-    """Fallback endpoint for debugging"""
+async def mcp_discovery(request):
+    """MCP Discovery endpoint"""
     return JSONResponse({
-        "error": "FastMCP streamable_http_app not found", 
-        "available_attributes": [d for d in dir(mcp) if not d.startswith('_')]
-    }, status_code=500)
+        "mcpVersion": "2024-11-05",
+        "serverInfo": {
+            "name": "token-counter-mcp",
+            "version": "1.0.0"
+        },
+        "capabilities": {
+            "tools": {},
+            "resources": {},
+            "prompts": {},
+            "logging": {}
+        },
+        # Point to the mounted MCP app
+        # If using streamable_http_app, it typically handles SSE at /sse and POST at /messages
+        # But since we mounted it at /mcp, let's point to that base.
+        # However, for simple HTTP transport, we might just point to the URL.
+        "transport": {
+            "type": "http",
+            "url": "/mcp"
+        }
+    })
 
 # Define base routes
 routes = [
     Route("/", serve_widget_root, methods=["GET"]),
     Route("/api/token-counter", api_token_counter_route, methods=["POST"]),
+    Route("/.well-known/mcp.json", mcp_discovery, methods=["GET"]),
 ]
 
 # Try to mount the correct MCP app
