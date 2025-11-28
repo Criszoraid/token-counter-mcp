@@ -521,7 +521,15 @@ async def mcp_debug_endpoint(request):
 # Try to mount the correct MCP app
 print(f"DEBUG: FastMCP attributes: {dir(mcp)}")
 
-if hasattr(mcp, 'streamable_http_app'):
+if hasattr(mcp, 'sse_app'):
+    # Prefer SSE app as it is more standard for current ChatGPT connectors
+    print("DEBUG: Mounting sse_app at /mcp")
+    if callable(mcp.sse_app):
+        mcp_app = mcp.sse_app()
+    else:
+        mcp_app = mcp.sse_app
+    routes.append(Mount("/mcp", app=mcp_app))
+elif hasattr(mcp, 'streamable_http_app'):
     # FastMCP v2 exposes the ASGI app directly via this attribute
     print("DEBUG: Mounting streamable_http_app at /mcp")
     # Check if it's a method or property
@@ -529,14 +537,6 @@ if hasattr(mcp, 'streamable_http_app'):
         mcp_app = mcp.streamable_http_app()
     else:
         mcp_app = mcp.streamable_http_app
-    routes.append(Mount("/mcp", app=mcp_app))
-elif hasattr(mcp, 'sse_app'):
-    # Fallback to SSE app if streamable is not found (though streamable is preferred for JSON-RPC)
-    print("DEBUG: Mounting sse_app at /mcp")
-    if callable(mcp.sse_app):
-        mcp_app = mcp.sse_app()
-    else:
-        mcp_app = mcp.sse_app
     routes.append(Mount("/mcp", app=mcp_app))
 else:
     # Fallback to debug endpoint
