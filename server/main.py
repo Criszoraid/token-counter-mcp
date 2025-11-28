@@ -525,6 +525,18 @@ else:
 # Create app
 app = Starlette(debug=True, routes=routes)
 
+# Add CORS Middleware
+from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for simplicity, or restrict to ["https://chatgpt.com"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
