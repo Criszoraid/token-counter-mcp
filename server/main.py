@@ -509,18 +509,32 @@ routes = [
     Route("/.well-known/mcp.json", mcp_discovery, methods=["GET"]),
 ]
 
+# Debug endpoint fallback
+async def mcp_debug_endpoint(request):
+    from starlette.responses import JSONResponse
+    return JSONResponse({
+        "error": "MCP HTTP endpoint not configured correctly",
+        "details": "Could not find streamable_http_app or sse_app on FastMCP instance.",
+        "available_attributes": dir(mcp)
+    }, status_code=500)
+
 # Try to mount the correct MCP app
+print(f"DEBUG: FastMCP attributes: {dir(mcp)}")
+
 if hasattr(mcp, 'streamable_http_app'):
     # FastMCP v2 exposes the ASGI app directly via this attribute
+    print("DEBUG: Mounting streamable_http_app at /mcp")
     mcp_app = mcp.streamable_http_app
     routes.append(Mount("/mcp", app=mcp_app))
 elif hasattr(mcp, 'sse_app'):
     # Fallback to SSE app if streamable is not found (though streamable is preferred for JSON-RPC)
+    print("DEBUG: Mounting sse_app at /mcp")
     mcp_app = mcp.sse_app
     routes.append(Mount("/mcp", app=mcp_app))
 else:
     # Fallback to debug endpoint
-    routes.append(Route("/mcp", mcp_debug_endpoint, methods=["POST"]))
+    print("DEBUG: No MCP app found, mounting debug endpoint")
+    routes.append(Route("/mcp", mcp_debug_endpoint, methods=["POST", "GET"]))
 
 # Create app
 app = Starlette(debug=True, routes=routes)
