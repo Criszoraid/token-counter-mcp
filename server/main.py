@@ -475,38 +475,34 @@ async def api_token_counter_route(request):
 # ==== Starlette App =======================================================
 
 from starlette.applications import Starlette
-from starlette.routing import Route
+from starlette.routing import Route, Mount
 from starlette.responses import JSONResponse
 
-async def mcp_endpoint(request):
-    """Handle MCP protocol requests manually"""
-    # Debug: Check available methods if standard ones fail
-    try:
-        # Try standard FastMCP http handler
-        if hasattr(mcp, 'handle_http'):
-            return await mcp.handle_http(request)
-        
-        # Try finding the underlying server
-        if hasattr(mcp, '_mcp_server'):
-            # This might be the low-level server
-            pass
-            
-        # If we are here, we don't know how to handle it with this version
-        # Let's return the attributes to help debugging
-        return JSONResponse({
-            "error": "FastMCP HTTP handler not found", 
-            "available_attributes": [d for d in dir(mcp) if not d.startswith('_')]
-        }, status_code=500)
-        
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+async def mcp_debug_endpoint(request):
+    """Fallback endpoint for debugging"""
+    return JSONResponse({
+        "error": "FastMCP streamable_http_app not found", 
+        "available_attributes": [d for d in dir(mcp) if not d.startswith('_')]
+    }, status_code=500)
 
-# Define routes
+# Define base routes
 routes = [
     Route("/", serve_widget_root, methods=["GET"]),
     Route("/api/token-counter", api_token_counter_route, methods=["POST"]),
-    Route("/mcp", mcp_endpoint, methods=["POST"])
 ]
+
+# Try to mount the correct MCP app
+if hasattr(mcp, 'streamable_http_app'):
+    # FastMCP v2 exposes the ASGI app directly via this attribute
+    mcp_app = mcp.streamable_http_app
+    routes.append(Mount("/mcp", app=mcp_app))
+elif hasattr(mcp, 'sse_app'):
+    # Fallback to SSE app if streamable is not found (though streamable is preferred for JSON-RPC)
+    mcp_app = mcp.sse_app
+    routes.append(Mount("/mcp", app=mcp_app))
+else:
+    # Fallback to debug endpoint
+    routes.append(Route("/mcp", mcp_debug_endpoint, methods=["POST"]))
 
 # Create app
 app = Starlette(debug=True, routes=routes)
