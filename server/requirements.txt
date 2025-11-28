@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+fastmcp
+tiktoken
+openai
+pydantic
