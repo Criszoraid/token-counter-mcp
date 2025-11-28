@@ -2,37 +2,110 @@
 
 Widget interactivo para ChatGPT que cuenta tokens y estima costes de diferentes modelos de IA.
 
-## 🚀 Despliegue en Render
+## ✨ Características
 
-1. Sube el proyecto a GitHub
-2. Conecta tu repositorio en [Render](https://render.com)
-3. Render detectará automáticamente el archivo `render.yaml`
-4. El servicio se desplegará automáticamente
+- ✅ **Widget Interactivo de React** con [OpenAI Apps SDK UI](https://www.npmjs.com/package/@openai/apps-sdk-ui)
+- ✅ **Servidor MCP** en Python/FastAPI que expone herramientas a ChatGPT
+- ✅ **Actualización Dinámica** - El widget se actualiza cuando ChatGPT crea/completa tareas
+- ✅ **Diseño Moderno** con Tailwind CSS 4 y componentes accesibles
+- ✅ **Desplegado en Render** - Listo para usar en producción
+- ✅ **JSON-RPC 2.0** - Protocolo MCP estándar
+- ✅ **Recursos HTML** - Widgets embebidos con `text/html+skybridge`
 
-## 🔧 Desarrollo Local
+## 🎯 ¿Cómo Funciona?
 
-### Backend (Python)
+1. **Usuario pregunta a ChatGPT**: *"Muéstrame mis tareas"* (o *"Cuenta los tokens de este texto"*)
+2. **ChatGPT llama al servidor MCP** usando JSON-RPC 2.0
+3. **Servidor responde** con datos estructurados + HTML del widget
+4. **ChatGPT renderiza** el widget React directamente en la conversación
+5. **Usuario interactúa** con el widget
+6. **Widget se actualiza** dinámicamente
+
+## 🌐 Demo en Vivo
+
+**Servidor en Producción:**
+🔗 [https://token-counter-mcp.onrender.com](https://token-counter-mcp.onrender.com)
+
+**Endpoint MCP:**
+🔗 [https://token-counter-mcp.onrender.com/mcp/sse](https://token-counter-mcp.onrender.com/mcp/sse)
+
+**Widget de Prueba:**
+🔗 [https://token-counter-mcp.onrender.com/widget](https://token-counter-mcp.onrender.com/widget)
+
+## 📋 Requisitos
+
+- **Node.js 18+** ([Descargar](https://nodejs.org/))
+- **Python 3.10+** ([Descargar](https://www.python.org/))
+- **npm** (incluido con Node.js)
+- **Git** (opcional, para clonar el repositorio)
+
+## 🛠️ Instalación Local
+
+### 1. Clonar el Repositorio
+
 ```bash
-cd server
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+git clone https://github.com/Criszoraid/token-counter-mcp.git
+cd token-counter-mcp
 ```
 
-### Frontend (React)
+### 2. Instalar Dependencias de Node.js
+
 ```bash
 cd web
 npm install
-npm run build
+cd ..
 ```
 
-## 📡 Conectar a ChatGPT
+### 3. Crear Entorno Virtual de Python
 
-1. Ve a ChatGPT → Configuración → MCP Connectors
-2. Añade tu endpoint: `https://tu-app.onrender.com/mcp`
-3. Usa el tool `token_counter` en tus conversaciones
+**macOS/Linux:**
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
-## 🛠️ Tecnologías
+**Windows:**
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+```
 
-- **Backend**: Python, FastAPI, FastMCP, tiktoken
-- **Frontend**: React, TypeScript, Tailwind CSS, Vite
-- **Protocolo**: Model Context Protocol (MCP)
+### 4. Instalar Dependencias de Python
+
+```bash
+pip install -r server/requirements.txt
+```
+
+## 🚀 Desarrollo Local
+
+### Opción A: Script Automático (Recomendado)
+
+**macOS/Linux:**
+```bash
+chmod +x start-dev.sh
+./start-dev.sh
+```
+
+**Windows:**
+```powershell
+.\start-dev.ps1
+```
+
+Esto inicia automáticamente:
+- ✅ Servidor de assets estáticos (puerto 4444)
+- ✅ Servidor MCP Python/FastAPI (puerto 8000)
+
+### Opción B: Manual
+
+**Terminal 1 (Frontend):**
+```bash
+cd web
+npm run dev -- --port 4444
+```
+
+**Terminal 2 (Backend):**
+```bash
+# Asegúrate de tener el venv activado
+uvicorn server.main:app --reload --port 8000
+```
+
