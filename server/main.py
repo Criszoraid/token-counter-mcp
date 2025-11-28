@@ -192,9 +192,172 @@ async def token_counter(args: TokenCounterArgs):
             }
         ],
         "_meta": meta,
-        # For the widget to open, we often need the tool result to include the reference or the tool definition to have it.
-        # If the tool definition has `openai/outputTemplate`, the client opens it.
     }
+
+# ==== Optimize Prompt Tool ================================================
+
+class OptimizePromptArgs(BaseModel):
+    prompt_text: str
+    model: str = "gpt-4o-mini"
+    optimization_level: str = "balanced"  # "aggressive", "balanced", "conservative"
+
+@mcp.tool(
+    "optimize_prompt",
+    description=(
+        "Optimiza un prompt para reducir tokens manteniendo el significado. "
+        "Sugiere versiones más cortas y muestra el ahorro de tokens."
+    ),
+)
+async def optimize_prompt(args: OptimizePromptArgs):
+    """
+    Optimiza un prompt para reducir el número de tokens manteniendo el significado.
+    """
+    original_text = args.prompt_text
+    original_tokens = count_tokens(original_text, args.model)
+    
+    # Técnicas de optimización
+    optimized_versions = []
+    
+    # Versión 1: Eliminar palabras redundantes y de relleno
+    conservative = _optimize_conservative(original_text)
+    conservative_tokens = count_tokens(conservative, args.model)
+    optimized_versions.append({
+        "version": "Conservadora",
+        "text": conservative,
+        "tokens": conservative_tokens,
+        "reduction": original_tokens - conservative_tokens,
+        "reduction_percent": round((1 - conservative_tokens / original_tokens) * 100, 1) if original_tokens > 0 else 0,
+    })
+    
+    # Versión 2: Simplificar estructura y usar abreviaciones
+    balanced = _optimize_balanced(original_text)
+    balanced_tokens = count_tokens(balanced, args.model)
+    optimized_versions.append({
+        "version": "Balanceada",
+        "text": balanced,
+        "tokens": balanced_tokens,
+        "reduction": original_tokens - balanced_tokens,
+        "reduction_percent": round((1 - balanced_tokens / original_tokens) * 100, 1) if original_tokens > 0 else 0,
+    })
+    
+    # Versión 3: Máxima compresión
+    aggressive = _optimize_aggressive(original_text)
+    aggressive_tokens = count_tokens(aggressive, args.model)
+    optimized_versions.append({
+        "version": "Agresiva",
+        "text": aggressive,
+        "tokens": aggressive_tokens,
+        "reduction": original_tokens - aggressive_tokens,
+        "reduction_percent": round((1 - aggressive_tokens / original_tokens) * 100, 1) if original_tokens > 0 else 0,
+    })
+    
+    # Seleccionar la versión según el nivel de optimización
+    selected_version = {
+        "conservative": optimized_versions[0],
+        "balanced": optimized_versions[1],
+        "aggressive": optimized_versions[2],
+    }.get(args.optimization_level, optimized_versions[1])
+    
+    result = {
+        "original": {
+            "text": original_text,
+            "tokens": original_tokens,
+        },
+        "optimized": selected_version,
+        "all_versions": optimized_versions,
+    }
+    
+    return {
+        "content": [
+            {
+                "type": "text",
+                "text": (
+                    f"✨ Optimización completada\n\n"
+                    f"📝 Original: {original_tokens} tokens\n"
+                    f"✅ Optimizado ({selected_version['version']}): {selected_version['tokens']} tokens\n"
+                    f"💰 Ahorro: {selected_version['reduction']} tokens ({selected_version['reduction_percent']}%)\n\n"
+                    f"Texto optimizado:\n{selected_version['text']}"
+                ),
+            }
+        ],
+    }
+
+# Helper functions for optimization
+def _optimize_conservative(text: str) -> str:
+    """Optimización conservadora: elimina palabras de relleno"""
+    import re
+    
+    # Palabras de relleno comunes en español
+    filler_words = [
+        r'\b(por favor|por favor,)\b',
+        r'\b(básicamente|realmente|actualmente|literalmente)\b',
+        r'\b(muy|mucho|bastante)\s+',
+        r'\b(un poco|algo|medio)\s+',
+        r'\s+(y|o|pero)\s+\1\s+',  # duplicados
+    ]
+    
+    result = text
+    for pattern in filler_words:
+        result = re.sub(pattern, ' ', result, flags=re.IGNORECASE)
+    
+    # Limpiar espacios múltiples
+    result = re.sub(r'\s+', ' ', result).strip()
+    
+    return result
+
+def _optimize_balanced(text: str) -> str:
+    """Optimización balanceada: simplifica estructura"""
+    result = _optimize_conservative(text)
+    
+    import re
+    
+    # Simplificaciones comunes
+    replacements = {
+        r'\bpuedes\s+': '',
+        r'\bpodrías\s+': '',
+        r'\bme gustaría que\s+': '',
+        r'\bquisiera que\s+': '',
+        r'\ben el caso de que\b': 'si',
+        r'\bcon el fin de\b': 'para',
+        r'\bcon el objetivo de\b': 'para',
+        r'\ba continuación\b': '',
+        r'\bde manera que\b': 'para que',
+    }
+    
+    for pattern, replacement in replacements.items():
+        result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+    
+    # Limpiar espacios
+    result = re.sub(r'\s+', ' ', result).strip()
+    
+    return result
+
+def _optimize_aggressive(text: str) -> str:
+    """Optimización agresiva: máxima compresión"""
+    result = _optimize_balanced(text)
+    
+    import re
+    
+    # Compresión agresiva
+    replacements = {
+        r'\bestá\s+': '',
+        r'\bes\s+': '',
+        r'\bson\s+': '',
+        r'\bque\s+': '',
+        r'\bdel\s+': '',
+        r'\bde\s+la\s+': '',
+        r'\bpara\s+el\s+': 'p/',
+        r'\bpara\s+la\s+': 'p/',
+    }
+    
+    for pattern, replacement in replacements.items():
+        result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+    
+    # Limpiar espacios
+    result = re.sub(r'\s+', ' ', result).strip()
+    
+    return result
+
 
 # Monkey patch or manual adjustment if FastMCP doesn't support the dict arg in decorator
 # The user's code:
