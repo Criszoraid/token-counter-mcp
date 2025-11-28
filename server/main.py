@@ -219,6 +219,105 @@ async def token_counter(args: TokenCounterArgs):
 # If the user provided code is from a specific tutorial/doc, I should try to respect it.
 # Let's assume the user's code is correct for their environment.
 
+# ==== Serve Widget at Root ================================================
+
+from fastapi.responses import HTMLResponse
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_widget():
+    """Serve the widget interface at the root URL"""
+    dist = Path(__file__).resolve().parents[1] / "web" / "dist"
+    
+    try:
+        # Read the built assets
+        js_file = dist / "assets" / "index.js"
+        if not js_file.exists():
+            js_files = list((dist / "assets").glob("*.js"))
+            if js_files:
+                js_file = js_files[0]
+        
+        js = js_file.read_text(encoding="utf-8")
+        
+        css_file = next((dist / "assets").glob("*.css"), None)
+        css = css_file.read_text(encoding="utf-8") if css_file else ""
+        
+        # Create a standalone HTML page
+        html = f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Counter - MCP Widget</title>
+    <style>{css}</style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module">
+    // Mock the OpenAI SDK for standalone usage
+    window.openai = {{
+        toolOutput: null,
+        toolInput: null,
+        widgetState: {{}},
+        setWidgetState: function(state) {{
+            this.widgetState = state;
+        }},
+        notifyIntrinsicHeight: function() {{}},
+        callTool: async function(toolName, args) {{
+            // Call the actual MCP endpoint
+            const response = await fetch('/api/token-counter', {{
+                method: 'POST',
+                headers: {{ 'Content-Type': 'application/json' }},
+                body: JSON.stringify(args)
+            }});
+            const data = await response.json();
+            return {{ toolOutput: data }};
+        }}
+    }};
+    
+    {js}
+    </script>
+</body>
+</html>"""
+        
+        return HTMLResponse(content=html)
+    
+    except Exception as e:
+        return HTMLResponse(content=f"""
+            <html>
+                <body>
+                    <h1>Error loading widget</h1>
+                    <p>{str(e)}</p>
+                    <p>Make sure the web project is built: cd web && npm run build</p>
+                </body>
+            </html>
+        """, status_code=500)
+
+# ==== API Endpoint for standalone widget =================================
+
+@app.post("/api/token-counter")
+async def api_token_counter(args: TokenCounterArgs):
+    """Direct API endpoint for the standalone widget"""
+    prompt_tokens = count_tokens(args.prompt_text, args.model)
+    response_tokens = count_tokens(args.response_text or "", args.model)
+    total_tokens = prompt_tokens + response_tokens
+
+    costs = {}
+    for model in SUPPORTED_MODELS:
+        costs[model] = {
+            "prompt_tokens": prompt_tokens,
+            "response_tokens": response_tokens,
+            "total_tokens": total_tokens,
+            "estimated_cost_usd": estimate_cost(prompt_tokens, response_tokens, model),
+        }
+
+    return {
+        "prompt_tokens": prompt_tokens,
+        "response_tokens": response_tokens,
+        "total_tokens": total_tokens,
+        "default_model": args.model,
+        "costs": costs,
+    }
+
 # ==== Exponer MCP por HTTP (JSON-RPC 2.0) =================================
 
 @app.post("/mcp")
