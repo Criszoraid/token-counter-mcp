@@ -44,7 +44,7 @@ def estimate_cost(tokens_in: int, tokens_out: int, model: str):
 
 WIDGET_URI = "ui://widget/token-counter.html"
 
-@mcp.resource("token-counter-widget", WIDGET_URI, {})
+@mcp.resource(WIDGET_URI)
 async def get_token_counter_widget():
     """
     Devuelve el HTML del widget React empaquetado por Vite.
