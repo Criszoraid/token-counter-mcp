@@ -1,12 +1,9 @@
 import os
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel
 import tiktoken
 from pathlib import Path
 
-app = FastAPI()
 mcp = FastMCP("token-counter-mcp", "1.0.0")
 
 # ==== Helpers =============================================================
@@ -382,17 +379,18 @@ def _optimize_aggressive(text: str) -> str:
 # If the user provided code is from a specific tutorial/doc, I should try to respect it.
 # Let's assume the user's code is correct for their environment.
 
-# ==== Serve Widget at Root ================================================
 
-from fastapi.responses import HTMLResponse
 
-@app.get("/", response_class=HTMLResponse)
-async def serve_widget():
+# ==== Custom Routes for Widget ============================================
+
+# Add custom routes to serve the widget at the root
+@mcp.custom_route("/", methods=["GET"])
+async def serve_widget_root(request):
     """Serve the widget interface at the root URL"""
+    from starlette.responses import HTMLResponse
     dist = Path(__file__).resolve().parents[1] / "web" / "dist"
     
     try:
-        # Read the built assets
         js_file = dist / "assets" / "index.js"
         if not js_file.exists():
             js_files = list((dist / "assets").glob("*.js"))
@@ -400,11 +398,9 @@ async def serve_widget():
                 js_file = js_files[0]
         
         js = js_file.read_text(encoding="utf-8")
-        
         css_file = next((dist / "assets").glob("*.css"), None)
         css = css_file.read_text(encoding="utf-8") if css_file else ""
         
-        # Create a standalone HTML page
         html = f"""<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -416,17 +412,13 @@ async def serve_widget():
 <body>
     <div id="root"></div>
     <script type="module">
-    // Mock the OpenAI SDK for standalone usage
     window.openai = {{
         toolOutput: null,
         toolInput: null,
         widgetState: {{}},
-        setWidgetState: function(state) {{
-            this.widgetState = state;
-        }},
+        setWidgetState: function(state) {{ this.widgetState = state; }},
         notifyIntrinsicHeight: function() {{}},
         callTool: async function(toolName, args) {{
-            // Call the actual MCP endpoint
             const response = await fetch('/api/token-counter', {{
                 method: 'POST',
                 headers: {{ 'Content-Type': 'application/json' }},
@@ -436,30 +428,26 @@ async def serve_widget():
             return {{ toolOutput: data }};
         }}
     }};
-    
     {js}
     </script>
 </body>
 </html>"""
         
         return HTMLResponse(content=html)
-    
     except Exception as e:
-        return HTMLResponse(content=f"""
-            <html>
-                <body>
-                    <h1>Error loading widget</h1>
-                    <p>{str(e)}</p>
-                    <p>Make sure the web project is built: cd web && npm run build</p>
-                </body>
-            </html>
-        """, status_code=500)
+        return HTMLResponse(content=f"<h1>Error: {str(e)}</h1>", status_code=500)
 
-# ==== API Endpoint for standalone widget =================================
-
-@app.post("/api/token-counter")
-async def api_token_counter(args: TokenCounterArgs):
+# API endpoint for standalone widget
+@mcp.custom_route("/api/token-counter", methods=["POST"])
+async def api_token_counter_route(request):
     """Direct API endpoint for the standalone widget"""
+    from starlette.responses import JSONResponse
+    import json
+    
+    body = await request.body()
+    args_dict = json.loads(body)
+    args = TokenCounterArgs(**args_dict)
+    
     prompt_tokens = count_tokens(args.prompt_text, args.model)
     response_tokens = count_tokens(args.response_text or "", args.model)
     total_tokens = prompt_tokens + response_tokens
@@ -473,19 +461,17 @@ async def api_token_counter(args: TokenCounterArgs):
             "estimated_cost_usd": estimate_cost(prompt_tokens, response_tokens, model),
         }
 
-    return {
+    return JSONResponse({
         "prompt_tokens": prompt_tokens,
         "response_tokens": response_tokens,
         "total_tokens": total_tokens,
         "default_model": args.model,
         "costs": costs,
-    }
+    })
 
-# ==== Exponer MCP por HTTP (JSON-RPC 2.0) =================================
-
-# Mount FastMCP as a sub-application using the correct method
-app.mount("/mcp", mcp.http_app())
+# ==== Run Server ==========================================================
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
+    # Run FastMCP with HTTP transport
+    # This will serve both the MCP protocol and custom routes
+    mcp.run(transport="http", host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
