@@ -483,23 +483,19 @@ async def api_token_counter(args: TokenCounterArgs):
 
 # ==== Exponer MCP por HTTP (JSON-RPC 2.0) =================================
 
+from fastapi import Request
+
 @app.post("/mcp")
-async def mcp_endpoint(request):
-    # FastMCP handle_http might need the request object
-    # The user code: response = await mcp.handle_http(request)
-    # This implies mcp.handle_http takes the raw request.
-    # In FastAPI, we usually need `Request` from fastapi.
-    from fastapi import Request
-    
-    # We need to define the signature properly for FastAPI to inject the request
-    async def handle(req: Request):
-        # We need to read the body and pass it to mcp
-        # FastMCP.handle_http usually expects a dict or similar, or the starlette request.
-        # Let's assume it handles starlette Request.
-        response = await mcp.handle_http(req)
+async def mcp_endpoint(request: Request):
+    """Handle MCP protocol requests"""
+    try:
+        response = await mcp.handle_http(request)
         return JSONResponse(response)
-    
-    return await handle(request)
+    except Exception as e:
+        return JSONResponse(
+            {"error": str(e), "message": "Error processing MCP request"},
+            status_code=500
+        )
 
 if __name__ == "__main__":
     import uvicorn
