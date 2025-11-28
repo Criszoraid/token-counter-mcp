@@ -469,9 +469,9 @@ async def api_token_counter_route(request):
         "costs": costs,
     })
 
-# ==== Run Server ==========================================================
+
 
 if __name__ == "__main__":
     # Run FastMCP with HTTP transport
-    # This will serve both the MCP protocol and custom routes
-    mcp.run(transport="http", host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
+    # Removed host/port args as they caused TypeError
+    mcp.run(transport="http")
