@@ -11,6 +11,9 @@ ENV/
 dist/
 build/
 
+# Except web/dist (needed for Render)
+!web/dist/
+
 # Node
 node_modules/
 npm-debug.log*
