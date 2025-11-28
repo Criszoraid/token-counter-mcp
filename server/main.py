@@ -483,21 +483,8 @@ async def api_token_counter(args: TokenCounterArgs):
 
 # ==== Exponer MCP por HTTP (JSON-RPC 2.0) =================================
 
-# Mount FastMCP as a sub-application
-from starlette.middleware.cors import CORSMiddleware
-
-# Add CORS middleware to allow ChatGPT to connect
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Mount the FastMCP app at /mcp
-mcp_app = mcp.get_asgi_app()
-app.mount("/mcp", mcp_app)
+# Mount FastMCP as a sub-application using the correct method
+app.mount("/mcp", mcp.http_app())
 
 if __name__ == "__main__":
     import uvicorn
