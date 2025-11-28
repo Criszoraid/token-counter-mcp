@@ -14,7 +14,7 @@ Widget interactivo para ChatGPT que cuenta tokens y estima costes de diferentes 
 
 ## 🎯 ¿Cómo Funciona?
 
-1. **Usuario pregunta a ChatGPT**: *"Muéstrame mis tareas"* (o *"Cuenta los tokens de este texto"*)
+1. **Usuario pregunta a ChatGPT**: *"Cuenta los tokens de este prompt/texto"*
 2. **ChatGPT llama al servidor MCP** usando JSON-RPC 2.0
 3. **Servidor responde** con datos estructurados + HTML del widget
 4. **ChatGPT renderiza** el widget React directamente en la conversación
