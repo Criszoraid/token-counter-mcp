@@ -524,12 +524,19 @@ print(f"DEBUG: FastMCP attributes: {dir(mcp)}")
 if hasattr(mcp, 'streamable_http_app'):
     # FastMCP v2 exposes the ASGI app directly via this attribute
     print("DEBUG: Mounting streamable_http_app at /mcp")
-    mcp_app = mcp.streamable_http_app
+    # Check if it's a method or property
+    if callable(mcp.streamable_http_app):
+        mcp_app = mcp.streamable_http_app()
+    else:
+        mcp_app = mcp.streamable_http_app
     routes.append(Mount("/mcp", app=mcp_app))
 elif hasattr(mcp, 'sse_app'):
     # Fallback to SSE app if streamable is not found (though streamable is preferred for JSON-RPC)
     print("DEBUG: Mounting sse_app at /mcp")
-    mcp_app = mcp.sse_app
+    if callable(mcp.sse_app):
+        mcp_app = mcp.sse_app()
+    else:
+        mcp_app = mcp.sse_app
     routes.append(Mount("/mcp", app=mcp_app))
 else:
     # Fallback to debug endpoint
